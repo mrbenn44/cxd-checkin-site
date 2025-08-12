@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Weekly Check-In</title>
+<style>
+ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px;line-height:1.4}
+ h1{font-size:20px;margin:0 0 8px}
+ .anchors{display:flex;justify-content:space-between;margin:12px 2px;color:#444}
+ .pill{display:inline-block;padding:6px 10px;border:1px solid #ccc;border-radius:999px;margin:8px 8px 12px 0;cursor:pointer}
+ .pill input{margin-right:6px}
+ input[type=range]{width:100%}
+ button{margin-top:16px;padding:10px 14px;border-radius:8px;border:0;background:#0a66c2;color:#fff;font-weight:600;cursor:pointer}
+ #selected{margin-top:6px;font-weight:600}
+</style>
+
+<h1>This week, did you feel confident making clinical calls using the chest X-ray and Annalise?</h1>
+
+<input type="hidden" id="pid">
+<label class="pill"><input type="radio" name="didReview" value="Yes" checked> Reviewed CXRs</label>
+<label class="pill"><input type="radio" name="didReview" value="No"> Didn’t review</label>
+
+<div class="anchors"><span>I struggle</span><span>I get by</span><span>I’m pretty good</span><span>I’m a radiologist!</span></div>
+<input id="confidence" type="range" min="1" max="10" step="1" value="5">
+<div style="display:flex;justify-content:space-between;color:#333;margin-top:6px">
+  <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+</div>
+<div id="selected">Selected: 5</div>
+<button id="submitBtn">Submit</button>
+
+<script>
+const params=new URLSearchParams(location.search);
+const pid=params.get('code')||''; document.getElementById('pid').value=pid;
+
+const slider=document.getElementById('confidence');
+const selected=document.getElementById('selected');
+slider.addEventListener('input',()=>selected.textContent='Selected: '+slider.value);
+
+const radios=[...document.getElementsByName('didReview')];
+function setSliderState(){const yes=radios.find(r=>r.checked).value==='Yes'; slider.disabled=!yes; selected.textContent=yes?('Selected: '+slider.value):'Selected: —';}
+radios.forEach(r=>r.addEventListener('change',setSliderState)); setSliderState();
+
+function mondayISO(d=new Date()){const day=d.getUTCDay()||7; if(day!==1)d.setUTCDate(d.getUTCDate()-(day-1)); d.setUTCHours(0,0,0,0); return d.toISOString().slice(0,10);}
+
+const ENDPOINT='/api/submit-checkin'; // your function path (created in step 3)
+document.getElementById('submitBtn').addEventListener('click', async ()=> {
+  if(!pid){ alert('Missing code. Please open the link from your SMS.'); return; }
+  const didReview=radios.find(r=>r.checked).value==='Yes';
+  const payload={ type:'checkin', pid, weekStart:mondayISO(new Date()), didReview, confidence: didReview?Number(slider.value):null, ts:new Date().toISOString() };
+  try{
+    const res=await fetch(ENDPOINT,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    alert(res.ok?'Thanks—saved!':'Sorry, something went wrong.');
+  }catch(e){ alert('Network error.'); }
+});
+</script>
+</html>
